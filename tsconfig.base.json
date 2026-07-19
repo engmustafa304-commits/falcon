@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@falcon/shared/*": ["packages/shared/src/*"],
+      "@falcon/design-tokens": ["packages/design-tokens/src/index.ts"],
+      "@falcon/config/*": ["packages/config/src/*"],
+      "@falcon/api-contracts/*": ["packages/api-contracts/src/*"],
+      "@falcon/design-tokens/*": ["packages/design-tokens/src/*"],
+      "@falcon/tenant/*": ["packages/tenant/src/*"],
+      "@falcon/security/*": ["packages/security/src/*"],
+      "@falcon/types/*": ["packages/types/src/*"]
+    }
+  }
+}

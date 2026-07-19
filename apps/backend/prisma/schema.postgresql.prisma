@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Dealer {
+  id              String           @id @default(cuid())
+  name            String
+  city            String
+  email           String?
+  phone           String?
+  isVerified      Boolean          @default(false)
+  tenantId        String
+  ownerUserId     String?
+  owner           User?            @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  cars            Car[]
+  leads           Lead[]
+  financeRequests FinanceRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([ownerUserId])
+  @@index([city])
+  @@map("dealers")
+}
+
+model Car {
+  id              String           @id @default(cuid())
+  dealerId        String
+  dealer          Dealer           @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  name            String           @default("Vehicle")
+  brand           String
+  model           String
+  year            Int
+  price           Int
+  city            String
+  mileage         Int              @default(0)
+  imageUrl        String?
+  transmission    String           @default("غير محدد")
+  fuel            String           @default("غير محدد")
+  status          CarStatus        @default(DRAFT)
+  tenantId        String
+  leads           Lead[]
+  financeRequests FinanceRequest[]
+  favorites       Favorite[]
+  compareItems    CompareItem[]
+  images          CarImage[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([dealerId])
+  @@index([brand, model])
+  @@index([city])
+  @@map("cars")
+}
+
+model CarImage {
+  id              String   @id @default(cuid())
+  carId           String
+  car             Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  url             String
+  storagePublicId String?
+  alt             String?
+  sortOrder       Int      @default(0)
+  isMain          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([carId])
+  @@index([isMain])
+  @@index([storagePublicId])
+  @@map("car_images")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  tenantId      String         @default("local-dev")
+  name          String
+  email         String         @unique
+  phone         String?
+  passwordHash  String
+  role          UserRole       @default(CUSTOMER)
+  isActive      Boolean        @default(true)
+  dealers       Dealer[]
+  favorites     Favorite[]
+  compareItems  CompareItem[]
+  notifications Notification[]
+  leads         Lead[]
+  financeRequests FinanceRequest[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([tenantId])
+  @@index([role])
+  @@map("users")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carId     String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, carId])
+  @@index([userId])
+  @@index([carId])
+  @@map("favorites")
+}
+
+model CompareItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carId     String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, carId])
+  @@index([userId])
+  @@index([carId])
+  @@map("compare_items")
+}
+
+model Lead {
+  id        String     @id @default(cuid())
+  tenantId  String     @default("local-dev")
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  carId     String?
+  car       Car?       @relation(fields: [carId], references: [id], onDelete: SetNull)
+  dealerId  String?
+  dealer    Dealer?    @relation(fields: [dealerId], references: [id], onDelete: SetNull)
+  name      String
+  phone     String
+  email     String?
+  message   String?
+  source    LeadSource @default(CAR_DETAIL)
+  status    LeadStatus @default(NEW)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([carId])
+  @@index([dealerId])
+  @@index([status])
+  @@map("leads")
+}
+
+model FinanceRequest {
+  id              String               @id @default(cuid())
+  tenantId        String               @default("local-dev")
+  userId          String?
+  user            User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  carId           String?
+  car             Car?                 @relation(fields: [carId], references: [id], onDelete: SetNull)
+  dealerId        String?
+  dealer          Dealer?              @relation(fields: [dealerId], references: [id], onDelete: SetNull)
+  customerName    String
+  phone           String
+  email           String?
+  monthlyIncome   Int?
+  downPayment     Int?
+  financingPeriod Int?
+  employmentType  String?
+  status          FinanceRequestStatus @default(NEW)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([carId])
+  @@index([dealerId])
+  @@index([status])
+  @@map("finance_requests")
+}
+
+enum CarStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  SOLD
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  DEALER_OWNER
+  DEALER_MANAGER
+  CUSTOMER
+}
+
+enum LeadSource {
+  CAR_DETAIL
+  DEALER_PAGE
+  FINANCE_REQUEST
+  WHATSAPP_CLICK
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  WON
+  LOST
+}
+
+enum FinanceRequestStatus {
+  NEW
+  REVIEWING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  LEAD
+  FINANCE
+  CAR
+  DEALER
+}

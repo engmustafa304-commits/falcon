@@ -1,0 +1,31 @@
+import { Router } from "express";
+import { adminRoutes } from "./admin.js";
+import { authRoutes } from "./auth.js";
+import { carRoutes } from "./cars.js";
+import { dealerAnalyticsRoutes } from "./dealerAnalytics.js";
+import { dealerRoutes } from "./dealers.js";
+import { dealerFinanceRequestRoutes, financeRequestRoutes } from "./financeRequests.js";
+import { dealerLeadRoutes, leadRoutes } from "./leads.js";
+import { notificationRoutes } from "./notifications.js";
+import { seoRoutes } from "./seo.js";
+import { compareRoutes, favoriteRoutes } from "./savedCars.js";
+import { uploadRoutes } from "./uploads.js";
+import { healthRouter } from "../health/health.routes.js";
+
+export const apiRoutes = Router();
+
+apiRoutes.use("/auth", authRoutes);
+apiRoutes.use("/admin", adminRoutes);
+apiRoutes.use("/cars", carRoutes);
+apiRoutes.use("/dealer/analytics", dealerAnalyticsRoutes);
+apiRoutes.use("/dealer/finance-requests", dealerFinanceRequestRoutes);
+apiRoutes.use("/dealer/leads", dealerLeadRoutes);
+apiRoutes.use("/dealers", dealerRoutes);
+apiRoutes.use("/compare", compareRoutes);
+apiRoutes.use("/favorites", favoriteRoutes);
+apiRoutes.use("/finance-requests", financeRequestRoutes);
+apiRoutes.use("/health", healthRouter);
+apiRoutes.use("/leads", leadRoutes);
+apiRoutes.use("/notifications", notificationRoutes);
+apiRoutes.use("/seo", seoRoutes);
+apiRoutes.use("/uploads", uploadRoutes);

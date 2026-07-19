@@ -1,0 +1,104 @@
+# Project Structure
+
+```text
+apps/
+  frontend/
+    src/
+      assets/
+      components/
+      config/
+      contexts/
+      design-system/
+        tokens/
+        primitives/
+        patterns/
+      features/
+      hooks/
+      i18n/
+      layouts/
+      lib/
+      pages/
+        admin/
+        auth/
+        brands/
+        dashboard/
+        dealer/
+        dealers/
+        finance/
+        marketplace/
+      router/
+      services/
+      store/
+      styles/
+      types/
+      utils/
+  backend/
+    prisma/
+    src/
+      config/
+      contracts/
+      controllers/
+      database/
+      errors/
+      health/
+      integrations/
+      jobs/
+      localization/
+      middlewares/
+      modules/
+        ai/
+        analytics/
+        audit/
+        auth/
+        billing/
+        compliance/
+        crm/
+        customers/
+        dealers/
+        finance/
+        identity/
+        integrations/
+        localization/
+        notifications/
+        observability/
+        payments/
+        public-sites/
+        reports/
+        search/
+        settings/
+        storage/
+        subscriptions/
+        tenants/
+        uploads/
+        users/
+        vehicles/
+        whatsapp/
+        white-label/
+      observability/
+      prisma/
+      queue/
+      repositories/
+      routes/
+      security/
+      services/
+      types/
+      utils/
+      validation/
+packages/
+  api-contracts/
+  config/
+  design-tokens/
+  security/
+  shared/
+  tenant/
+  types/
+infrastructure/
+  docker/
+  kubernetes/
+  observability/
+  terraform/
+scripts/
+docs/
+```
+
+Every source folder contains a `README.md` describing its responsibility.
