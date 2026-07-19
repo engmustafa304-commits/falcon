@@ -8,8 +8,17 @@ try {
   const config = applyDeployedRuntimeEnv(process.env);
   printDeployedRuntimeDiagnostics(config);
 
-  await runCommand("prisma", ["generate", "--schema", config.prismaSchema]);
-  await runCommand("prisma", ["migrate", "deploy", "--schema", config.prismaSchema]);
+  await runCommand("corepack", [
+    "pnpm",
+    "--filter",
+    "@falcon/backend",
+    "exec",
+    "prisma",
+    "migrate",
+    "deploy",
+    "--schema",
+    config.prismaSchema
+  ]);
   await runCommand("node", ["dist/index.js"], {
     replaceProcess: true
   });
