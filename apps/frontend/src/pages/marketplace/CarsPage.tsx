@@ -3,8 +3,10 @@ import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Seo } from "@/components/seo/Seo";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Button, Card } from "@/design-system/primitives";
 import { getCarsResult, mapBackendCarToMarketplaceCar, type CarSearchParams, type CarSearchSort } from "@/services/carsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { MarketplaceCarCard, MarketplaceHero } from "./MarketplaceComponents";
 import { PublicMarketplaceLayout } from "./PublicMarketplaceLayout";
 import { marketplaceCars, type MarketplaceCar } from "./marketplaceData";
@@ -70,11 +72,11 @@ type FilterFormState = {
 export function CarsPage() {
   const prefersReducedMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [cars, setCars] = useState<MarketplaceCar[]>(marketplaceCars);
+  const [cars, setCars] = useState<MarketplaceCar[]>(isDemoFallbackEnabled ? marketplaceCars : []);
   const [isFallback, setIsFallback] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [total, setTotal] = useState(marketplaceCars.length);
+  const [total, setTotal] = useState(isDemoFallbackEnabled ? marketplaceCars.length : 0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [filters, setFilters] = useState<FilterFormState>(() => getFiltersFromSearchParams(searchParams));
@@ -103,12 +105,17 @@ export function CarsPage() {
         setIsFallback(false);
       } catch {
         if (isMounted) {
-          setCars(marketplaceCars);
-          setTotal(marketplaceCars.length);
+          const fallbackCars = isDemoFallbackEnabled ? marketplaceCars : [];
+          setCars(fallbackCars);
+          setTotal(fallbackCars.length);
           setPage(1);
           setPageSize(DEFAULT_PAGE_SIZE);
-          setIsFallback(false);
-          setLoadError("تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً.");
+          setIsFallback(isDemoFallbackEnabled);
+          setLoadError(
+            isDemoFallbackEnabled
+              ? "تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً."
+              : "تعذر تحميل بيانات السيارات. حاول تحديث الصفحة أو العودة لاحقاً."
+          );
         }
       } finally {
         if (isMounted) {
@@ -252,7 +259,7 @@ export function CarsPage() {
           {isLoading ? (
             <DataNotice className="mt-6" message="جاري تحميل بيانات السيارات..." tone="loading" />
           ) : null}
-          {loadError ? <DataNotice className="mt-6" message={loadError} tone="warning" /> : null}
+          {loadError ? <ApiErrorNotice className="mt-6" message={loadError} /> : null}
           {isFallback ? (
             <DataNotice
               className="mt-6"

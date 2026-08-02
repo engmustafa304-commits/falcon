@@ -1,6 +1,7 @@
 import { Edit3, ImagePlus, Plus, Star, Trash2 } from "lucide-react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Badge, Button, Card, ImageWithFallback, Input } from "@/design-system/primitives";
 import {
   createCar,
@@ -19,6 +20,7 @@ import {
 } from "@/services/carsApi";
 import { getMyDealer, type BackendDealerDetails } from "@/services/dealersApi";
 import { uploadCarImage, uploadCarImageAsset } from "@/services/uploadsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { dashboardCars } from "./dashboardData";
 import { DashboardPageHeader, ResponsiveTable } from "./DashboardPrimitives";
 
@@ -35,7 +37,7 @@ type DashboardCarRow = {
 
 export function ManageCars() {
   const [dealer, setDealer] = useState<BackendDealerDetails | null>(null);
-  const [cars, setCars] = useState<DashboardCarRow[]>([...dashboardCars]);
+  const [cars, setCars] = useState<DashboardCarRow[]>(isDemoFallbackEnabled ? [...dashboardCars] : []);
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [listWarning, setListWarning] = useState<string | null>(null);
@@ -61,8 +63,8 @@ export function ManageCars() {
       return;
     }
 
-    setCars([...dashboardCars]);
-    setIsFallback(true);
+    setCars(isDemoFallbackEnabled ? [...dashboardCars] : []);
+    setIsFallback(isDemoFallbackEnabled);
   }
 
   useEffect(() => {
@@ -85,16 +87,16 @@ export function ManageCars() {
           setIsFallback(false);
           setListWarning(null);
         } else {
-          setCars([...dashboardCars]);
-          setIsFallback(true);
+          setCars(isDemoFallbackEnabled ? [...dashboardCars] : []);
+          setIsFallback(isDemoFallbackEnabled);
           setListWarning(null);
         }
       } catch {
         if (isMounted) {
-          setCars([...dashboardCars]);
-          setIsFallback(false);
+          setCars(isDemoFallbackEnabled ? [...dashboardCars] : []);
+          setIsFallback(isDemoFallbackEnabled);
           setDealer(null);
-          setListWarning("لا يوجد معرض مرتبط بحسابك.");
+          setListWarning("تعذر تحميل بيانات معرضك. تأكد من تسجيل الدخول ووجود معرض مرتبط بحسابك.");
         }
       } finally {
         if (isMounted) {
@@ -305,7 +307,7 @@ export function ManageCars() {
     setGalleryMessage(null);
     setGalleryError(null);
 
-    if (!window.confirm("هل تريد حذف هذه الصورة من معرض السيارة؟")) {
+    if (!window.confirm("هل تريد تعيين هذه الصورة كصورة رئيسية للسيارة؟")) {
       return;
     }
 
@@ -362,9 +364,7 @@ export function ManageCars() {
             </p>
           ) : null}
           {listWarning ? (
-            <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-              {listWarning}
-            </p>
+            <ApiErrorNotice className="mb-4" message={listWarning} />
           ) : null}
           {!dealer && !isLoading ? (
             <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
@@ -374,6 +374,11 @@ export function ManageCars() {
           {isFallback ? (
             <p className="mb-4 rounded-2xl border border-accent-500/20 bg-accent-500/10 px-4 py-3 text-sm font-semibold text-dark-900">
               يتم عرض بيانات تجريبية لأن قاعدة البيانات فارغة.
+            </p>
+          ) : null}
+          {!isLoading && !isFallback && cars.length === 0 ? (
+            <p className="mb-4 rounded-2xl border border-border-subtle bg-white px-4 py-3 text-sm font-semibold text-slate-600">
+              لا توجد سيارات محفوظة لهذا المعرض حالياً.
             </p>
           ) : null}
           <ResponsiveTable

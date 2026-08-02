@@ -1,30 +1,37 @@
+const HERO_BACKGROUND = "/images/hero/hero-background.webp";
+const FALCON_LOGO = "/images/logo/logo-falcon.webp";
+
 export const ASSETS = {
   hero: {
-    background: "/images/hero/hero-background.webp",
-    complete: "/images/hero/car-complete.webp",
-    exploded: "/images/hero/car-exploded.webp",
-    glow: "/images/hero/hero-glow.webp",
-    placeholder: "/images/hero/hero-placeholder.webp",
-    shadow: "/images/hero/hero-shadow.webp"
+    background: HERO_BACKGROUND,
+    complete: HERO_BACKGROUND,
+    exploded: HERO_BACKGROUND,
+    glow: HERO_BACKGROUND,
+    placeholder: HERO_BACKGROUND,
+    shadow: HERO_BACKGROUND
   },
   logo: {
-    falcon: "/images/logo/logo-falcon.webp"
+    falcon: FALCON_LOGO
   },
   dashboard: {
-    owner: "/images/dashboard/dashboard-owner.webp"
+    analytics: HERO_BACKGROUND,
+    cars: HERO_BACKGROUND,
+    leads: HERO_BACKGROUND,
+    owner: HERO_BACKGROUND,
+    profile: HERO_BACKGROUND
   },
   cars: [
-    "/images/cars/car-01.webp",
-    "/images/cars/car-02.webp",
-    "/images/cars/car-03.webp",
-    "/images/cars/car-04.webp",
-    "/images/cars/car-05.webp",
-    "/images/cars/car-06.webp"
+    HERO_BACKGROUND,
+    HERO_BACKGROUND,
+    HERO_BACKGROUND,
+    HERO_BACKGROUND,
+    HERO_BACKGROUND,
+    HERO_BACKGROUND
   ],
   dealers: [
-    "/images/dealers/dealer-01.webp",
-    "/images/dealers/dealer-02.webp",
-    "/images/dealers/dealer-03.webp",
-    "/images/dealers/dealer-04.webp"
+    HERO_BACKGROUND,
+    HERO_BACKGROUND,
+    HERO_BACKGROUND,
+    HERO_BACKGROUND
   ]
 } as const;

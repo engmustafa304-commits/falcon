@@ -1,7 +1,9 @@
 import { MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Badge, Button, Card } from "@/design-system/primitives";
 import { getDealerLeads, updateDealerLeadStatus, type Lead, type LeadStatus } from "@/services/leadsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { leads } from "./dashboardData";
 import { DashboardPageHeader, ResponsiveTable } from "./DashboardPrimitives";
 
@@ -46,8 +48,12 @@ export function Leads() {
       } catch {
         if (isMounted) {
           setDealerLeads([]);
-          setIsFallback(true);
-          setError("تعذر تحميل العملاء المحتملين من API، لذلك يتم عرض البيانات التجريبية.");
+          setIsFallback(isDemoFallbackEnabled);
+          setError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل العملاء المحتملين من API، لذلك يتم عرض البيانات التجريبية."
+              : "تعذر تحميل العملاء المحتملين من API. حاول تحديث الصفحة أو مراجعة اتصال الخادم."
+          );
         }
       }
     }
@@ -72,30 +78,43 @@ export function Leads() {
     }
   }
 
-  const realRows = dealerLeads.map((lead) => [
-    lead.name,
-    lead.phone,
-    lead.email ?? "غير محدد",
-    formatDate(lead.createdAt),
-    getLeadCarName(lead),
-    sourceLabels[lead.source],
-    <Badge key={`${lead.id}-status`} tone={statusTone[lead.status]}>{statusLabels[lead.status]}</Badge>,
-    <span className="inline-flex flex-wrap gap-2" key={`${lead.id}-actions`}>
-      <Button className="min-h-11 rounded-2xl px-3 py-2" variant="accent">
-        <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
-        واتساب
-      </Button>
-      <select
-        className="min-h-11 rounded-2xl border border-border-subtle bg-white px-3 text-xs font-semibold text-dark-900 outline-none focus:border-accent-500"
-        defaultValue={lead.status}
-        onChange={(event) => void handleStatusChange(lead, event.currentTarget.value as LeadStatus)}
-      >
-        {Object.entries(statusLabels).map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </select>
-    </span>
-  ]);
+  const realRows = dealerLeads.map((lead) => {
+    const whatsappHref = buildWhatsAppHref(lead.phone);
+
+    return [
+      lead.name,
+      lead.phone,
+      lead.email ?? "غير محدد",
+      formatDate(lead.createdAt),
+      getLeadCarName(lead),
+      sourceLabels[lead.source],
+      <Badge key={`${lead.id}-status`} tone={statusTone[lead.status]}>{statusLabels[lead.status]}</Badge>,
+      <span className="inline-flex flex-wrap gap-2" key={`${lead.id}-actions`}>
+        {whatsappHref ? (
+          <a href={whatsappHref} rel="noopener noreferrer" target="_blank">
+            <Button className="min-h-11 rounded-2xl px-3 py-2" variant="accent">
+              <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
+              واتساب
+            </Button>
+          </a>
+        ) : (
+          <Button className="min-h-11 rounded-2xl px-3 py-2" disabled title="رقم الهاتف غير صالح لفتح واتساب." variant="accent">
+            <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
+            واتساب
+          </Button>
+        )}
+        <select
+          className="min-h-11 rounded-2xl border border-border-subtle bg-white px-3 text-xs font-semibold text-dark-900 outline-none focus:border-accent-500"
+          defaultValue={lead.status}
+          onChange={(event) => void handleStatusChange(lead, event.currentTarget.value as LeadStatus)}
+        >
+          {Object.entries(statusLabels).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </span>
+    ];
+  });
 
   const fallbackRows = leads.map(([name, phone, email, date, car, status]) => [
     name,
@@ -127,9 +146,7 @@ export function Leads() {
           </p>
         ) : null}
         {error ? (
-          <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-            {error}
-          </p>
+          <ApiErrorNotice className="mb-4" message={error} />
         ) : null}
         {isFallback ? (
           <p className="mb-4 rounded-2xl border border-accent-500/20 bg-accent-500/10 px-4 py-3 text-sm font-semibold text-dark-900">
@@ -163,4 +180,37 @@ function formatDate(value?: string) {
     month: "2-digit",
     year: "numeric"
   }).format(new Date(value));
+}
+
+function buildWhatsAppHref(phone: string) {
+  const digits = normalizePhoneDigits(phone);
+
+  if (!digits || digits.length < 8 || digits.length > 15) {
+    return null;
+  }
+
+  return `https://wa.me/${digits}`;
+}
+
+function normalizePhoneDigits(phone: string) {
+  const withoutInternationalPrefix = phone.trim().replace(/^00/, "");
+  const digits = withoutInternationalPrefix.replace(/[^\d]/g, "");
+
+  if (!digits) {
+    return null;
+  }
+
+  if (digits.startsWith("966")) {
+    return digits;
+  }
+
+  if (digits.startsWith("05") && digits.length === 10) {
+    return `966${digits.slice(1)}`;
+  }
+
+  if (digits.startsWith("5") && digits.length === 9) {
+    return `966${digits}`;
+  }
+
+  return digits;
 }

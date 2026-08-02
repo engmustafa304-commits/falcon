@@ -1,6 +1,8 @@
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Badge, Card } from "@/design-system/primitives";
 import { DashboardPageHeader, MetricCard, MiniBars, ResponsiveTable } from "@/pages/dashboard/DashboardPrimitives";
 import { getAdminAnalytics, type AdminAnalytics } from "@/services/analyticsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { useEffect, useState } from "react";
 import { adminCars, adminDealers, adminMetrics, dealerGrowth, recentPlatformActivity } from "./adminData";
 
@@ -23,7 +25,11 @@ export function AdminOverview() {
       } catch {
         if (isMounted) {
           setAnalytics(null);
-          setLoadError("تعذر تحميل تحليلات المنصة الحقيقية، لذلك يتم عرض بيانات تجريبية مؤقتاً.");
+          setLoadError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل تحليلات المنصة الحقيقية، لذلك يتم عرض بيانات تجريبية مؤقتاً."
+              : "تعذر تحميل تحليلات المنصة الحقيقية. حاول تحديث الصفحة أو مراجعة اتصال الخادم."
+          );
         }
       } finally {
         if (isMounted) {
@@ -39,10 +45,10 @@ export function AdminOverview() {
     };
   }, []);
 
-  const metrics = analytics ? buildAdminMetrics(analytics) : adminMetrics;
-  const activityRows = analytics ? buildAdminActivityRows(analytics) : recentPlatformActivity;
-  const dealerRows = analytics ? buildLatestDealerRows(analytics) : adminDealers.slice(0, 4);
-  const carRows = analytics ? buildLatestCarRows(analytics) : adminCars.slice(0, 4);
+  const metrics = analytics ? buildAdminMetrics(analytics) : isDemoFallbackEnabled ? adminMetrics : [];
+  const activityRows = analytics ? buildAdminActivityRows(analytics) : isDemoFallbackEnabled ? recentPlatformActivity : [];
+  const dealerRows = analytics ? buildLatestDealerRows(analytics) : isDemoFallbackEnabled ? adminDealers.slice(0, 4) : [];
+  const carRows = analytics ? buildLatestCarRows(analytics) : isDemoFallbackEnabled ? adminCars.slice(0, 4) : [];
 
   return (
     <div>
@@ -54,7 +60,7 @@ export function AdminOverview() {
         <DataNotice message="جاري تحميل تحليلات المنصة..." />
       ) : null}
       {loadError ? (
-        <DataNotice message={loadError} tone="warning" />
+        <ApiErrorNotice className="mb-4" message={loadError} />
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value, trend]) => (

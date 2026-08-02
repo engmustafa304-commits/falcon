@@ -2,6 +2,7 @@ import { ArrowUpLeft, MessageCircle, Phone } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
+import { ASSETS } from "@/config/assets";
 import { Button } from "./Button";
 import { Badge } from "./Badge";
 import { ImageWithFallback } from "./ImageWithFallback";
@@ -25,7 +26,7 @@ export function CarImageCard({
   city = "الرياض",
   detailsHref = "/cars",
   imageAlt = "Premium vehicle silhouette",
-  imageSrc = "/images/cars/car-01.webp",
+  imageSrc = ASSETS.hero.background,
   name = "Porsche Taycan Turbo",
   phoneHref,
   price = "525,000 SAR",

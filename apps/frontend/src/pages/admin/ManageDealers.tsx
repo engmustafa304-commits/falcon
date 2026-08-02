@@ -2,6 +2,7 @@ import { Car, CheckCircle2, Edit3, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Badge, Button, Card, Input } from "@/design-system/primitives";
 import { DashboardPageHeader, ResponsiveTable } from "@/pages/dashboard/DashboardPrimitives";
 import {
@@ -12,6 +13,7 @@ import {
   type AdminDealer
 } from "@/services/adminDealersApi";
 import { createDealer } from "@/services/dealersApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { adminDealers } from "./adminData";
 
 export function ManageDealers() {
@@ -36,8 +38,12 @@ export function ManageDealers() {
       } catch {
         if (isMounted) {
           setDealers([]);
-          setIsFallback(true);
-          setError("تعذر تحميل المعارض من API، لذلك يتم عرض البيانات التجريبية.");
+          setIsFallback(isDemoFallbackEnabled);
+          setError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل المعارض من API، لذلك يتم عرض البيانات التجريبية."
+              : "تعذر تحميل المعارض من API. حاول تحديث الصفحة أو مراجعة اتصال الخادم."
+          );
         }
       }
     }
@@ -74,8 +80,7 @@ export function ManageDealers() {
       await createDealer({
         city,
         isVerified: true,
-        name,
-        tenantId: "local-dev"
+        name
       });
       await refreshDealers();
       setMessage("تمت إضافة المعرض بنجاح.");
@@ -202,9 +207,7 @@ export function ManageDealers() {
         </p>
       ) : null}
       {error ? (
-        <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-          {error}
-        </p>
+        <ApiErrorNotice className="mb-4" message={error} />
       ) : null}
       {isFallback ? (
         <p className="mb-4 rounded-2xl border border-accent-500/20 bg-accent-500/10 px-4 py-3 text-sm font-semibold text-dark-900">

@@ -1,8 +1,10 @@
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Button, Card } from "@/design-system/primitives";
 import { getFavorites, removeFavorite } from "@/services/savedCarsApi";
 import { mapBackendCarToMarketplaceCar, type BackendCar } from "@/services/carsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { MarketplaceCarCard, MarketplaceHero } from "./MarketplaceComponents";
 import { marketplaceCars } from "./marketplaceData";
 import { PublicMarketplaceLayout } from "./PublicMarketplaceLayout";
@@ -33,8 +35,12 @@ export function FavoritesPage() {
       } catch {
         if (isMounted) {
           setCars([]);
-          setIsFallback(true);
-          setError("تعذر تحميل المفضلة من API، لذلك يتم عرض بيانات تجريبية.");
+          setIsFallback(isDemoFallbackEnabled);
+          setError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل المفضلة من API، لذلك يتم عرض بيانات تجريبية."
+              : "تعذر تحميل المفضلة. حاول تحديث الصفحة أو تسجيل الدخول مرة أخرى."
+          );
         }
       }
     }
@@ -74,7 +80,7 @@ export function FavoritesPage() {
       <section className="px-5 py-10 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-7xl">
           <Notice message={message} tone="success" />
-          <Notice message={error} tone="warning" />
+          {error ? <ApiErrorNotice className="mb-4" message={error} /> : null}
           {isFallback ? <Notice message="يتم عرض بيانات تجريبية لأن API غير متاح." /> : null}
           {!isFallback && cars.length === 0 ? (
             <Card className="p-8 text-center">

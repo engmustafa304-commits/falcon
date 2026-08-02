@@ -1,5 +1,6 @@
 import { Card, ImageWithFallback } from "@/design-system/primitives";
 import { Seo } from "@/components/seo/Seo";
+import { ASSETS } from "@/config/assets";
 import { MarketplaceHero } from "./MarketplaceComponents";
 import { PublicMarketplaceLayout } from "./PublicMarketplaceLayout";
 import { marketplaceBrands } from "./marketplaceData";
@@ -10,7 +11,7 @@ export function BrandsPage() {
       <Seo
         canonical="/brands"
         description="استكشف سيارات Falcon حسب العلامة التجارية مثل تويوتا، لكزس، مرسيدس، BMW، هيونداي، كيا، نيسان، وفورد."
-        image="/images/brands/toyota.svg"
+        image={ASSETS.logo.falcon}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "CollectionPage",

@@ -1,8 +1,10 @@
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Button, Card, ImageWithFallback } from "@/design-system/primitives";
 import { getBackendCarImageSrc, type BackendCar } from "@/services/carsApi";
 import { getCompareItems, removeCompareItem } from "@/services/savedCarsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { marketplaceCars } from "./marketplaceData";
 import { MarketplaceHero } from "./MarketplaceComponents";
 import { PublicMarketplaceLayout } from "./PublicMarketplaceLayout";
@@ -44,8 +46,12 @@ export function ComparePage() {
       } catch {
         if (isMounted) {
           setCars([]);
-          setIsFallback(true);
-          setError("تعذر تحميل المقارنة من API، لذلك يتم عرض بيانات تجريبية.");
+          setIsFallback(isDemoFallbackEnabled);
+          setError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل المقارنة من API، لذلك يتم عرض بيانات تجريبية."
+              : "تعذر تحميل المقارنة. حاول تحديث الصفحة أو تسجيل الدخول مرة أخرى."
+          );
         }
       }
     }
@@ -85,7 +91,7 @@ export function ComparePage() {
       <section className="px-5 py-10 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-7xl">
           <Notice message={message} tone="success" />
-          <Notice message={error} tone="warning" />
+          {error ? <ApiErrorNotice className="mb-4" message={error} /> : null}
           {isFallback ? <Notice message="يتم عرض بيانات تجريبية لأن API غير متاح." /> : null}
           {!isFallback && visibleCars.length === 0 ? (
             <Card className="p-8 text-center">

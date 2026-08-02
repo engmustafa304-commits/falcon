@@ -26,6 +26,7 @@ import {
 import { mapBackendCarToMarketplaceCar } from "@/services/carsApi";
 import { getDealer, type BackendDealerDetails } from "@/services/dealersApi";
 import { createLead } from "@/services/leadsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { marketplaceCars } from "./marketplaceData";
 import type { MarketplaceCar } from "./marketplaceData";
 import { PublicMarketplaceLayout } from "./PublicMarketplaceLayout";
@@ -78,8 +79,11 @@ const socialLinks = [
 
 export function DealerDetailsPage() {
   const { id } = useParams();
-  const [dealer, setDealer] = useState<DealerDetails>(fallbackDealer);
-  const [inventory, setInventory] = useState<MarketplaceCar[]>(marketplaceCars.slice(0, 6));
+  const [dealer, setDealer] = useState<DealerDetails | null>(isDemoFallbackEnabled ? fallbackDealer : null);
+  const [inventory, setInventory] = useState<MarketplaceCar[]>(
+    isDemoFallbackEnabled ? marketplaceCars.slice(0, 6) : []
+  );
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,13 +101,19 @@ export function DealerDetailsPage() {
           setInventory(
             apiDealer.cars && apiDealer.cars.length > 0
               ? apiDealer.cars.map(mapBackendCarToMarketplaceCar)
-              : marketplaceCars.slice(0, 6)
+              : isDemoFallbackEnabled ? marketplaceCars.slice(0, 6) : []
           );
+          setLoadError(null);
         }
       } catch {
         if (isMounted) {
-          setDealer(fallbackDealer);
-          setInventory(marketplaceCars.slice(0, 6));
+          setDealer(isDemoFallbackEnabled ? fallbackDealer : null);
+          setInventory(isDemoFallbackEnabled ? marketplaceCars.slice(0, 6) : []);
+          setLoadError(
+            isDemoFallbackEnabled
+              ? null
+              : "تعذر تحميل بيانات المعرض. قد يكون المعرض غير متاح أو أن الاتصال بالخادم تعذر مؤقتاً."
+          );
         }
       }
     }
@@ -114,6 +124,30 @@ export function DealerDetailsPage() {
       isMounted = false;
     };
   }, [id]);
+
+  if (!dealer) {
+    return (
+      <PublicMarketplaceLayout>
+        <Seo
+          canonical={`/dealers/${id ?? ""}`}
+          description="تعذر تحميل بيانات المعرض من Falcon."
+          image={ASSETS.hero.background}
+          title="المعرض غير متاح"
+        />
+        <SectionContainer className="pb-16 pt-10">
+          <Card className="p-8 text-center">
+            <h1 className="text-3xl font-semibold text-dark-900">المعرض غير متاح حالياً</h1>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-500">
+              {loadError ?? "جاري تحميل بيانات المعرض..."}
+            </p>
+            <Link to="/dealers">
+              <Button className="mt-6" variant="secondary">العودة إلى المعارض</Button>
+            </Link>
+          </Card>
+        </SectionContainer>
+      </PublicMarketplaceLayout>
+    );
+  }
 
   return (
     <PublicMarketplaceLayout>

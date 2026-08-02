@@ -32,6 +32,7 @@ import {
 import { getCar, type BackendCar } from "@/services/carsApi";
 import { createFinanceRequest } from "@/services/financeRequestsApi";
 import { createLead } from "@/services/leadsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { marketplaceCars } from "./marketplaceData";
 import { PublicMarketplaceLayout } from "./PublicMarketplaceLayout";
 
@@ -98,7 +99,8 @@ const financeDetails = [
 
 export function CarDetailsPage() {
   const { id } = useParams();
-  const [vehicle, setVehicle] = useState<VehicleDetails>(fallbackVehicle);
+  const [vehicle, setVehicle] = useState<VehicleDetails | null>(isDemoFallbackEnabled ? fallbackVehicle : null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const relatedCars = marketplaceCars.slice(1, 4);
 
   useEffect(() => {
@@ -114,10 +116,16 @@ export function CarDetailsPage() {
 
         if (isMounted) {
           setVehicle(mapBackendCarToVehicleDetails(apiCar));
+          setLoadError(null);
         }
       } catch {
         if (isMounted) {
-          setVehicle(fallbackVehicle);
+          setVehicle(isDemoFallbackEnabled ? fallbackVehicle : null);
+          setLoadError(
+            isDemoFallbackEnabled
+              ? null
+              : "تعذر تحميل بيانات السيارة. قد تكون السيارة غير متاحة أو أن الاتصال بالخادم تعذر مؤقتاً."
+          );
         }
       }
     }
@@ -128,6 +136,30 @@ export function CarDetailsPage() {
       isMounted = false;
     };
   }, [id]);
+
+  if (!vehicle) {
+    return (
+      <PublicMarketplaceLayout>
+        <Seo
+          canonical={`/cars/${id ?? ""}`}
+          description="تعذر تحميل بيانات السيارة من Falcon."
+          image={ASSETS.hero.background}
+          title="السيارة غير متاحة"
+        />
+        <SectionContainer className="pb-16 pt-10">
+          <Card className="p-8 text-center">
+            <h1 className="text-3xl font-semibold text-dark-900">السيارة غير متاحة حالياً</h1>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-500">
+              {loadError ?? "جاري تحميل بيانات السيارة..."}
+            </p>
+            <Link to="/cars">
+              <Button className="mt-6" variant="secondary">العودة إلى السيارات</Button>
+            </Link>
+          </Card>
+        </SectionContainer>
+      </PublicMarketplaceLayout>
+    );
+  }
 
   return (
     <PublicMarketplaceLayout>

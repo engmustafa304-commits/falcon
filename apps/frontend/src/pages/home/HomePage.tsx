@@ -53,6 +53,7 @@ import { getCars, mapBackendCarToHomeCar } from "@/services/carsApi";
 import { getDealers, mapBackendDealerToFrontendDealer } from "@/services/dealersApi";
 import type { FrontendDealer } from "@/services/dealersApi";
 import { cn } from "@/utils/cn";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import {
   brands,
   categories,
@@ -578,14 +579,16 @@ function FeaturedCarsSection({
 }) {
   const apiFalconCars = apiCars.filter((car) => car.badge === "وسيط فالكون");
   const apiDealerCars = apiCars.filter((car) => car.badge === "معرض موثق");
+  const useDemoCars = isDemoFallbackEnabled && apiCars.length === 0;
+  const generalCars = apiCars.length > 0 ? apiCars.slice(0, 3) : [];
 
   const rails = [
-    { badge: "وسيط فالكون", cars: apiFalconCars.length > 0 ? apiFalconCars : falconDirectCars, title: "سيارات فالكون" },
-    { badge: "معرض موثق", cars: apiDealerCars.length > 0 ? apiDealerCars : dealerCars, title: "سيارات المعارض" },
-    { cars: apiCars.length > 0 ? apiCars.slice(0, 3) : newCars, title: "سيارات جديدة" },
-    { cars: apiCars.length > 0 ? apiCars.slice(0, 3) : usedCars, title: "سيارات مستعملة" },
-    { cars: financedCars, title: "سيارات ممولة" },
-    { cars: specialOfferCars, title: "عروض خاصة" }
+    { badge: "وسيط فالكون", cars: apiFalconCars.length > 0 ? apiFalconCars : useDemoCars ? falconDirectCars : [], title: "سيارات فالكون" },
+    { badge: "معرض موثق", cars: apiDealerCars.length > 0 ? apiDealerCars : useDemoCars ? dealerCars : [], title: "سيارات المعارض" },
+    { cars: generalCars.length > 0 ? generalCars : useDemoCars ? newCars : [], title: "سيارات جديدة" },
+    { cars: generalCars.length > 0 ? generalCars : useDemoCars ? usedCars : [], title: "سيارات مستعملة" },
+    { cars: generalCars.length > 0 ? generalCars : useDemoCars ? financedCars : [], title: "سيارات ممولة" },
+    { cars: generalCars.length > 0 ? generalCars : useDemoCars ? specialOfferCars : [], title: "عروض خاصة" }
   ] as const;
 
   return (
@@ -593,12 +596,13 @@ function FeaturedCarsSection({
       <SectionHeading eyebrow="السيارات" title="اختيارات واضحة لكل نوع بحث" />
       {isLoading ? <HomeDataNotice message="جاري تحميل سيارات Falcon..." /> : null}
       {fallbackReason === "empty" ? (
-        <HomeDataNotice message="يتم عرض بيانات تجريبية لأن قاعدة البيانات فارغة." />
+        <HomeDataNotice message={isDemoFallbackEnabled ? "يتم عرض بيانات تجريبية لأن قاعدة البيانات فارغة." : "لا توجد سيارات منشورة حالياً."} />
       ) : null}
       {fallbackReason === "error" ? (
         <HomeDataNotice
-          message="تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً."
+          message={isDemoFallbackEnabled ? "تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً." : "تعذر تحميل سيارات Falcon. حاول تحديث الصفحة أو العودة لاحقاً."}
           tone="warning"
+          withRetry
         />
       ) : null}
       <div className="space-y-10">
@@ -639,7 +643,7 @@ function CarRail({
         </Link>
       </div>
       <div className="flex gap-5 overflow-x-auto pb-3">
-        {cars.map((car) => (
+        {cars.length > 0 ? cars.map((car) => (
           <div className="min-w-[280px] max-w-[340px] flex-1 sm:min-w-[310px] sm:max-w-[360px]" key={`${title}-${car.name}`}>
             <CarImageCard
               badge={car.badge}
@@ -651,7 +655,11 @@ function CarRail({
               price={car.price}
             />
           </div>
-        ))}
+        )) : (
+          <Card className="min-w-[280px] p-6 text-sm font-semibold text-slate-500">
+            لا توجد سيارات متاحة في هذا القسم حالياً.
+          </Card>
+        )}
       </div>
     </section>
   );
@@ -666,7 +674,7 @@ function DealersSection({
   fallbackReason: "empty" | "error" | null;
   isLoading: boolean;
 }) {
-  const visibleDealers = apiDealers.length > 0 ? apiDealers : dealers;
+  const visibleDealers = apiDealers.length > 0 ? apiDealers : isDemoFallbackEnabled ? dealers : [];
 
   return (
     <SectionContainer>
@@ -677,16 +685,17 @@ function DealersSection({
       />
       {isLoading ? <HomeDataNotice message="جاري تحميل المعارض المميزة..." /> : null}
       {fallbackReason === "empty" ? (
-        <HomeDataNotice message="يتم عرض بيانات تجريبية لأن قاعدة البيانات فارغة." />
+        <HomeDataNotice message={isDemoFallbackEnabled ? "يتم عرض بيانات تجريبية لأن قاعدة البيانات فارغة." : "لا توجد معارض منشورة حالياً."} />
       ) : null}
       {fallbackReason === "error" ? (
         <HomeDataNotice
-          message="تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً."
+          message={isDemoFallbackEnabled ? "تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً." : "تعذر تحميل المعارض المميزة. حاول تحديث الصفحة أو العودة لاحقاً."}
           tone="warning"
+          withRetry
         />
       ) : null}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {visibleDealers.map((dealer) => (
+        {visibleDealers.length > 0 ? visibleDealers.map((dealer) => (
           <Card className="p-5" key={dealer.name}>
             <div className="aspect-[4/3] overflow-hidden rounded-3xl bg-section">
               <ImageWithFallback
@@ -723,7 +732,11 @@ function DealersSection({
               </Link>
             </div>
           </Card>
-        ))}
+        )) : (
+          <Card className="p-6 text-sm font-semibold text-slate-500 md:col-span-2 xl:col-span-4">
+            لا توجد معارض متاحة للعرض حالياً.
+          </Card>
+        )}
       </div>
     </SectionContainer>
   );
@@ -731,21 +744,29 @@ function DealersSection({
 
 function HomeDataNotice({
   message,
-  tone = "info"
+  tone = "info",
+  withRetry = false
 }: {
   message: string;
   tone?: "info" | "warning";
+  withRetry?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "mb-6 rounded-2xl border px-4 py-3 text-sm font-semibold",
+        "mb-6 flex flex-col gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold sm:flex-row sm:items-center sm:justify-between",
         tone === "warning"
           ? "border-amber-200 bg-amber-50 text-amber-700"
           : "border-accent-500/20 bg-accent-500/10 text-dark-900"
       )}
     >
-      {message}
+      <span>{message}</span>
+      {withRetry ? (
+        <Button className="h-10 shrink-0 rounded-xl px-3 text-xs" onClick={() => window.location.reload()} type="button" variant="secondary">
+          <RefreshCcw className="h-4 w-4" strokeWidth={1.75} />
+          إعادة المحاولة
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -1034,22 +1055,23 @@ function LatestVehiclesSection({
   fallbackReason: "empty" | "error" | null;
 }) {
   const liveCars = apiCars.length > 0 ? apiCars.slice(0, 3) : null;
+  const demoCarsEnabled = isDemoFallbackEnabled && !liveCars;
 
   return (
     <>
       <CarRailSection
-        cars={liveCars ?? latestCars}
+        cars={liveCars ?? (demoCarsEnabled ? latestCars : [])}
         eyebrow="أحدث السيارات"
         fallbackReason={fallbackReason}
         title="وصلت حديثاً إلى Falcon"
       />
       <CarRailSection
-        cars={liveCars ?? mostViewedCars}
+        cars={liveCars ?? (demoCarsEnabled ? mostViewedCars : [])}
         eyebrow="الأكثر مشاهدة"
         title="سيارات يتابعها العملاء بكثرة"
       />
       <CarRailSection
-        cars={priceDropCars}
+        cars={liveCars ?? (demoCarsEnabled ? priceDropCars : [])}
         eyebrow="انخفض سعرها"
         icon={<TrendingDown className="h-5 w-5 text-accent-500" strokeWidth={1.75} />}
         title="فرص بسعر أفضل"
@@ -1075,17 +1097,18 @@ function CarRailSection({
     <SectionContainer>
       <SectionHeading eyebrow={eyebrow} title={title} />
       {fallbackReason === "empty" ? (
-        <HomeDataNotice message="يتم عرض بيانات تجريبية لأن قاعدة البيانات فارغة." />
+        <HomeDataNotice message={isDemoFallbackEnabled ? "يتم عرض بيانات تجريبية لأن قاعدة البيانات فارغة." : "لا توجد سيارات منشورة حالياً."} />
       ) : null}
       {fallbackReason === "error" ? (
         <HomeDataNotice
-          message="تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً."
+          message={isDemoFallbackEnabled ? "تعذر الاتصال بواجهة Falcon API، لذلك يتم عرض بيانات تجريبية مؤقتاً." : "تعذر تحميل بيانات السيارات. حاول تحديث الصفحة أو العودة لاحقاً."}
           tone="warning"
+          withRetry
         />
       ) : null}
       {icon ? <div className="mb-4">{icon}</div> : null}
       <div className="grid gap-5 md:grid-cols-3">
-        {cars.map((car) => (
+        {cars.length > 0 ? cars.map((car) => (
           <CarImageCard
             badge={car.badge}
             city={car.city}
@@ -1096,7 +1119,11 @@ function CarRailSection({
             name={car.name}
             price={car.price}
           />
-        ))}
+        )) : (
+          <Card className="p-6 text-sm font-semibold text-slate-500 md:col-span-3">
+            لا توجد سيارات متاحة في هذا القسم حالياً.
+          </Card>
+        )}
       </div>
     </SectionContainer>
   );

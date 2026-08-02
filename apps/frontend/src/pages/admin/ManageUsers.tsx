@@ -1,5 +1,6 @@
 import { PauseCircle, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Button, Badge } from "@/design-system/primitives";
 import { DashboardPageHeader, ResponsiveTable } from "@/pages/dashboard/DashboardPrimitives";
 import {
@@ -10,6 +11,7 @@ import {
   type AdminUser
 } from "@/services/adminUsersApi";
 import type { AuthRole } from "@/services/authApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { adminUsers } from "./adminData";
 
 const roleOptions: AuthRole[] = ["SUPER_ADMIN", "ADMIN", "DEALER_OWNER", "DEALER_MANAGER", "CUSTOMER"];
@@ -40,8 +42,12 @@ export function ManageUsers() {
       } catch {
         if (isMounted) {
           setUsers([]);
-          setIsFallback(true);
-          setError("تعذر تحميل المستخدمين من API، لذلك يتم عرض بيانات تجريبية.");
+          setIsFallback(isDemoFallbackEnabled);
+          setError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل المستخدمين من API، لذلك يتم عرض بيانات تجريبية."
+              : "تعذر تحميل المستخدمين من API. حاول تحديث الصفحة أو مراجعة اتصال الخادم."
+          );
         }
       }
     }
@@ -159,9 +165,7 @@ export function ManageUsers() {
         </p>
       ) : null}
       {error ? (
-        <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-          {error}
-        </p>
+        <ApiErrorNotice className="mb-4" message={error} />
       ) : null}
       {isFallback ? (
         <p className="mb-4 rounded-2xl border border-accent-500/20 bg-accent-500/10 px-4 py-3 text-sm font-semibold text-dark-900">

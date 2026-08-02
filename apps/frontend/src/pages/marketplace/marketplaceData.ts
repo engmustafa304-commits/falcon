@@ -132,18 +132,18 @@ export const marketplaceDealers = [
 ] as const;
 
 export const marketplaceBrands = [
-  ["Toyota", "تويوتا", "/images/brands/toyota.svg"],
-  ["Lexus", "لكزس", "/images/brands/lexus.svg"],
-  ["Hyundai", "هيونداي", "/images/brands/hyundai.svg"],
-  ["Kia", "كيا", "/images/brands/kia.svg"],
-  ["Nissan", "نيسان", "/images/brands/nissan.svg"],
-  ["Ford", "فورد", "/images/brands/ford.svg"],
-  ["Mercedes", "مرسيدس", "/images/brands/mercedes.svg"],
-  ["BMW", "بي إم دبليو", "/images/brands/bmw.svg"],
-  ["Chevrolet", "شيفروليه", "/images/brands/chevrolet.svg"],
-  ["GMC", "جي إم سي", "/images/brands/gmc.svg"],
-  ["Jeep", "جيب", "/images/brands/jeep.svg"],
-  ["Mazda", "مازدا", "/images/brands/mazda.svg"]
+  ["Toyota", "تويوتا", ASSETS.logo.falcon],
+  ["Lexus", "لكزس", ASSETS.logo.falcon],
+  ["Hyundai", "هيونداي", ASSETS.logo.falcon],
+  ["Kia", "كيا", ASSETS.logo.falcon],
+  ["Nissan", "نيسان", ASSETS.logo.falcon],
+  ["Ford", "فورد", ASSETS.logo.falcon],
+  ["Mercedes", "مرسيدس", ASSETS.logo.falcon],
+  ["BMW", "بي إم دبليو", ASSETS.logo.falcon],
+  ["Chevrolet", "شيفروليه", ASSETS.logo.falcon],
+  ["GMC", "جي إم سي", ASSETS.logo.falcon],
+  ["Jeep", "جيب", ASSETS.logo.falcon],
+  ["Mazda", "مازدا", ASSETS.logo.falcon]
 ] as const;
 
 export const marketplaceCategories = [

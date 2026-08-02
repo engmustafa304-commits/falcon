@@ -1,5 +1,7 @@
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Badge, Card, ImageWithFallback } from "@/design-system/primitives";
 import { getDealerAnalytics, type DealerAnalytics } from "@/services/analyticsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { useEffect, useState } from "react";
 import { dashboardCars, dashboardMetrics, salesTrend } from "./dashboardData";
 import { DashboardPageHeader, MetricCard, MiniBars, ResponsiveTable } from "./DashboardPrimitives";
@@ -23,7 +25,11 @@ export function DashboardHome() {
       } catch {
         if (isMounted) {
           setAnalytics(null);
-          setLoadError("تعذر تحميل التحليلات الحقيقية، لذلك يتم عرض بيانات تجريبية مؤقتاً.");
+          setLoadError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل التحليلات الحقيقية، لذلك يتم عرض بيانات تجريبية مؤقتاً."
+              : "تعذر تحميل تحليلات المعرض. حاول تحديث الصفحة أو مراجعة اتصال الخادم."
+          );
         }
       } finally {
         if (isMounted) {
@@ -39,8 +45,8 @@ export function DashboardHome() {
     };
   }, []);
 
-  const metrics = analytics ? buildDealerMetrics(analytics) : dashboardMetrics;
-  const latestCarRows = analytics ? buildLatestCarRows(analytics) : buildFallbackCarRows();
+  const metrics = analytics ? buildDealerMetrics(analytics) : isDemoFallbackEnabled ? dashboardMetrics : [];
+  const latestCarRows = analytics ? buildLatestCarRows(analytics) : isDemoFallbackEnabled ? buildFallbackCarRows() : [];
   const latestLeadRows = analytics ? buildLatestLeadRows(analytics) : [];
 
   return (
@@ -53,7 +59,7 @@ export function DashboardHome() {
         <DataNotice message="جاري تحميل تحليلات المعرض..." />
       ) : null}
       {loadError ? (
-        <DataNotice message={loadError} tone="warning" />
+        <ApiErrorNotice className="mb-4" message={loadError} />
       ) : null}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value, trend]) => (

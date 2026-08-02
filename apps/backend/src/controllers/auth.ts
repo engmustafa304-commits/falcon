@@ -24,7 +24,7 @@ const registerSchema = z.object({
   password: z.string().min(8),
   phone: z.string().min(5).optional(),
   role: z.enum(["DEALER_OWNER", "CUSTOMER"]).optional(),
-  tenantId: z.string().min(1).default("local-dev")
+  tenantId: z.string().min(1).default("platform")
 });
 
 const loginSchema = z.object({

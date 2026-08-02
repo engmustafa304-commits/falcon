@@ -39,7 +39,7 @@ export type CreateDealerInput = {
   isVerified?: boolean;
   name: string;
   phone?: string;
-  tenantId: string;
+  tenantId?: string;
 };
 
 const fallbackRatings = ["4.9", "4.8", "4.7", "4.8"];

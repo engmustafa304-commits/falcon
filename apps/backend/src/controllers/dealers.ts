@@ -9,7 +9,7 @@ const createDealerSchema = z.object({
   isVerified: z.boolean().optional(),
   name: z.string().min(1),
   phone: z.string().min(5).optional(),
-  tenantId: z.string().min(1)
+  tenantId: z.string().min(1).default("platform")
 });
 
 const updateDealerSchema = createDealerSchema.partial();

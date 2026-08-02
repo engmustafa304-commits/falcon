@@ -1,6 +1,7 @@
 import { BadgeCheck, ExternalLink, Filter, SlidersHorizontal } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Seo } from "@/components/seo/Seo";
+import { ASSETS } from "@/config/assets";
 import { Card, CarImageCard, Chip, ImageWithFallback, SectionContainer } from "@/design-system/primitives";
 import { PublicMarketplaceLayout } from "./PublicMarketplaceLayout";
 import { marketplaceCars, marketplaceBrands } from "./marketplaceData";
@@ -224,7 +225,7 @@ function getBrand(slug: string) {
     return {
       arabicName: "لكزس",
       englishName: "Lexus",
-      logo: "/images/brands/lexus.svg",
+      logo: ASSETS.logo.falcon,
       slug: "lexus"
     };
   }

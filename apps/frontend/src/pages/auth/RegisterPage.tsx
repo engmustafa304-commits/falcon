@@ -38,8 +38,7 @@ export function RegisterPage() {
         name,
         password,
         phone: phone || undefined,
-        role,
-        tenantId: "local-dev"
+        role
       });
 
       setSuccessMessage("تم إنشاء الحساب بنجاح.");

@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Badge, Button, Card } from "@/design-system/primitives";
 import { DashboardPageHeader, ResponsiveTable } from "@/pages/dashboard/DashboardPrimitives";
 import {
@@ -10,6 +11,7 @@ import {
   type LeadStatus
 } from "@/services/leadsApi";
 import { leads as fallbackLeads } from "@/pages/dashboard/dashboardData";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 
 const statusLabels: Record<LeadStatus, string> = {
   CONTACTED: "قيد التواصل",
@@ -58,8 +60,12 @@ export function AdminLeads() {
       } catch {
         if (isMounted) {
           setLeads([]);
-          setIsFallback(true);
-          setError("تعذر تحميل العملاء المحتملين من API، لذلك يتم عرض البيانات التجريبية.");
+          setIsFallback(isDemoFallbackEnabled);
+          setError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل العملاء المحتملين من API، لذلك يتم عرض البيانات التجريبية."
+              : "تعذر تحميل العملاء المحتملين من API. حاول تحديث الصفحة أو مراجعة اتصال الخادم."
+          );
         }
       }
     }
@@ -155,9 +161,7 @@ export function AdminLeads() {
           </p>
         ) : null}
         {error ? (
-          <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-            {error}
-          </p>
+          <ApiErrorNotice className="mb-4" message={error} />
         ) : null}
         {isFallback ? (
           <p className="mb-4 rounded-2xl border border-accent-500/20 bg-accent-500/10 px-4 py-3 text-sm font-semibold text-dark-900">

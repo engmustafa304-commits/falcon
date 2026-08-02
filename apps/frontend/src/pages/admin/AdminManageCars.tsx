@@ -2,6 +2,7 @@ import { Edit3, Search, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { ApiErrorNotice } from "@/components/state/ApiErrorNotice";
 import { Badge, Button, Card, ImageWithFallback, Input } from "@/design-system/primitives";
 import { DashboardPageHeader, ResponsiveTable } from "@/pages/dashboard/DashboardPrimitives";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/services/adminCarsApi";
 import { createCar } from "@/services/carsApi";
 import { getBackendCarImageSrc } from "@/services/carsApi";
+import { isDemoFallbackEnabled } from "@/utils/runtime";
 import { adminCars } from "./adminData";
 
 const statusOptions: AdminCarStatus[] = ["DRAFT", "ACTIVE", "SUSPENDED", "SOLD"];
@@ -59,8 +61,12 @@ export function AdminManageCars() {
       } catch {
         if (isMounted) {
           setCars([]);
-          setIsFallback(true);
-          setError("تعذر تحميل السيارات من API، لذلك يتم عرض البيانات التجريبية.");
+          setIsFallback(isDemoFallbackEnabled);
+          setError(
+            isDemoFallbackEnabled
+              ? "تعذر تحميل السيارات من API، لذلك يتم عرض البيانات التجريبية."
+              : "تعذر تحميل السيارات من API. حاول تحديث الصفحة أو مراجعة اتصال الخادم."
+          );
         }
       }
     }
@@ -298,9 +304,7 @@ export function AdminManageCars() {
         </p>
       ) : null}
       {error ? (
-        <p className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-          {error}
-        </p>
+        <ApiErrorNotice className="mb-4" message={error} />
       ) : null}
       {isFallback ? (
         <p className="mb-4 rounded-2xl border border-accent-500/20 bg-accent-500/10 px-4 py-3 text-sm font-semibold text-dark-900">
