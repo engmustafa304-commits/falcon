@@ -195,8 +195,9 @@ async function resolveFinanceRequestContext(carId?: string, dealerId?: string) {
       throw new ApiError(404, "Car not found", undefined, "CAR_NOT_FOUND");
     }
 
+    // The car's dealer is authoritative; a client-supplied dealerId is ignored so requests cannot be routed across dealers/tenants.
     return {
-      dealerId: dealerId ?? car.dealerId,
+      dealerId: car.dealerId,
       tenantId: car.tenantId
     };
   }

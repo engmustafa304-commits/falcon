@@ -492,6 +492,141 @@ describe.sequential("Falcon backend critical flows", () => {
       .expect(403);
   });
 
+  it("ignores client-supplied server-owned fields", async () => {
+    const { env } = await import("../config/env.js");
+
+    const registerResponse = await api
+      .post("/api/v1/auth/register")
+      .send({
+        email: uniqueEmail("evil-tenant-owner"),
+        isActive: false,
+        name: "Evil Tenant Owner",
+        password: "Test12345!",
+        role: "DEALER_OWNER",
+        tenantId: "evil-tenant"
+      })
+      .expect(201);
+    const ownerToken = registerResponse.body.data.token;
+
+    expect(registerResponse.body.data.user.tenantId).toBe(env.DEFAULT_TENANT_ID);
+    expect(registerResponse.body.data.user.isActive).toBe(true);
+
+    const ownDealerResponse = await api
+      .get("/api/v1/dealers/me")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .expect(200);
+    const ownDealerId = ownDealerResponse.body.data.id;
+
+    expect(ownDealerResponse.body.data.tenantId).toBe(env.DEFAULT_TENANT_ID);
+    expect(ownDealerResponse.body.data.isVerified).toBe(false);
+
+    const patchMeResponse = await api
+      .patch("/api/v1/dealers/me")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({ city: "الدمام", isVerified: true, ownerUserId: dealerSession.user.id, tenantId: "evil-tenant" })
+      .expect(200);
+
+    expect(patchMeResponse.body.data.city).toBe("الدمام");
+    expect(patchMeResponse.body.data.isVerified).toBe(false);
+    expect(patchMeResponse.body.data.tenantId).toBe(env.DEFAULT_TENANT_ID);
+    expect(patchMeResponse.body.data.ownerUserId).toBe(registerResponse.body.data.user.id);
+
+    const patchByIdResponse = await api
+      .patch(`/api/v1/dealers/${ownDealerId}`)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({ isVerified: true })
+      .expect(200);
+
+    expect(patchByIdResponse.body.data.isVerified).toBe(false);
+
+    await api
+      .delete(`/api/v1/dealers/${ownDealerId}`)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .expect(204);
+
+    const recreatedDealerResponse = await api
+      .post("/api/v1/dealers")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({ city: "الرياض", isVerified: true, name: "Self Verified Dealer", tenantId: "evil-tenant" })
+      .expect(201);
+
+    expect(recreatedDealerResponse.body.data.isVerified).toBe(false);
+    expect(recreatedDealerResponse.body.data.tenantId).toBe(env.DEFAULT_TENANT_ID);
+    expect(recreatedDealerResponse.body.data.ownerUserId).toBe(registerResponse.body.data.user.id);
+
+    const verifyResponse = await api
+      .patch(`/api/v1/admin/dealers/${recreatedDealerResponse.body.data.id}/verify`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .send({ isVerified: true })
+      .expect(200);
+
+    expect(verifyResponse.body.data.isVerified).toBe(true);
+
+    await api
+      .delete(`/api/v1/admin/dealers/${recreatedDealerResponse.body.data.id}`)
+      .set("Authorization", `Bearer ${adminSession.token}`)
+      .expect(204);
+
+    const tenantSpoofCarResponse = await api
+      .post("/api/v1/cars")
+      .set("Authorization", `Bearer ${dealerSession.token}`)
+      .send({ ...buildCarPayload({ name: "Tenant Spoof Car" }), tenantId: "evil-tenant" })
+      .expect(201);
+
+    expect(tenantSpoofCarResponse.body.data.dealerId).toBe(dealerId);
+    expect(tenantSpoofCarResponse.body.data.tenantId).toBe(env.DEFAULT_TENANT_ID);
+
+    await api
+      .post("/api/v1/cars")
+      .set("Authorization", `Bearer ${dealerSession.token}`)
+      .send({ ...buildCarPayload({ name: "Foreign Dealer Car" }), dealerId: secondDealerId, tenantId: "evil-tenant" })
+      .expect(403);
+
+    await api
+      .patch(`/api/v1/cars/${tenantSpoofCarResponse.body.data.id}`)
+      .set("Authorization", `Bearer ${dealerSession.token}`)
+      .send({ dealerId: secondDealerId })
+      .expect(403);
+
+    await api
+      .patch(`/api/v1/cars/${secondDealerCarId}`)
+      .set("Authorization", `Bearer ${dealerSession.token}`)
+      .send({ dealerId })
+      .expect(403);
+
+    const tenantPatchResponse = await api
+      .patch(`/api/v1/cars/${tenantSpoofCarResponse.body.data.id}`)
+      .set("Authorization", `Bearer ${dealerSession.token}`)
+      .send({ dealerId, price: 360000, tenantId: "evil-tenant" })
+      .expect(200);
+
+    expect(tenantPatchResponse.body.data.price).toBe(360000);
+    expect(tenantPatchResponse.body.data.dealerId).toBe(dealerId);
+    expect(tenantPatchResponse.body.data.tenantId).toBe(env.DEFAULT_TENANT_ID);
+
+    const secondDealerCar = await prisma.car.findUniqueOrThrow({ where: { id: secondDealerCarId } });
+    expect(secondDealerCar.dealerId).toBe(secondDealerId);
+
+    const leadResponse = await api
+      .post("/api/v1/leads")
+      .send({ carId, dealerId: secondDealerId, name: "Misrouted Lead", phone: "966500000001" })
+      .expect(201);
+
+    expect(leadResponse.body.data.dealerId).toBe(dealerId);
+
+    const financeResponse = await api
+      .post("/api/v1/finance-requests")
+      .send({ carId, customerName: "Misrouted Finance", dealerId: secondDealerId, phone: "966500000002" })
+      .expect(201);
+
+    expect(financeResponse.body.data.dealerId).toBe(dealerId);
+
+    await api
+      .delete(`/api/v1/cars/${tenantSpoofCarResponse.body.data.id}`)
+      .set("Authorization", `Bearer ${dealerSession.token}`)
+      .expect(204);
+  });
+
   it("creates and manages notifications", async () => {
     await api
       .post("/api/v1/leads")

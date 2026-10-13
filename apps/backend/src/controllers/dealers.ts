@@ -1,18 +1,22 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { env } from "../config/env.js";
 import { prisma } from "../database/prismaClient.js";
 import { ApiError } from "../errors/ApiError.js";
 
-const createDealerSchema = z.object({
+// Unknown fields are stripped by Zod and ignored. Dealer owners can only write profile fields;
+// isVerified/tenantId/ownerUserId are server-owned for them and admin-only otherwise.
+const dealerOwnerWritableSchema = z.object({
   city: z.string().min(1),
   email: z.string().email().optional(),
-  isVerified: z.boolean().optional(),
   name: z.string().min(1),
-  phone: z.string().min(5).optional(),
-  tenantId: z.string().min(1).default("platform")
+  phone: z.string().min(5).optional()
 });
 
-const updateDealerSchema = createDealerSchema.partial();
+const adminDealerWritableSchema = dealerOwnerWritableSchema.extend({
+  isVerified: z.boolean().optional(),
+  tenantId: z.string().min(1).optional()
+});
 
 const dealerInclude = {
   _count: {
@@ -34,37 +38,57 @@ export async function listDealers(_request: Request, response: Response) {
 }
 
 export async function createDealer(request: Request, response: Response) {
-  const payload = createDealerSchema.parse(request.body);
   const auth = request.auth;
 
   if (!auth) {
     throw new ApiError(401, "Authentication is required", undefined, "UNAUTHORIZED");
   }
 
-  if (!isAdminRole(auth.role)) {
-    if (auth.role !== "DEALER_OWNER") {
-      throw new ApiError(403, "Dealer access is required", undefined, "FORBIDDEN");
-    }
-
-    const existingDealer = await prisma.dealer.findFirst({
-      select: {
-        id: true
+  if (isAdminRole(auth.role)) {
+    const payload = adminDealerWritableSchema.parse(request.body);
+    const dealer = await prisma.dealer.create({
+      data: {
+        city: payload.city,
+        email: payload.email,
+        isVerified: payload.isVerified,
+        name: payload.name,
+        phone: payload.phone,
+        tenantId: payload.tenantId ?? env.DEFAULT_TENANT_ID
       },
-      where: {
-        ownerUserId: auth.userId
-      }
+      include: dealerInclude
     });
 
-    if (existingDealer) {
-      throw new ApiError(409, "Dealer profile already exists", undefined, "DEALER_ALREADY_EXISTS");
+    response.status(201).json({ data: dealer });
+    return;
+  }
+
+  if (auth.role !== "DEALER_OWNER") {
+    throw new ApiError(403, "Dealer access is required", undefined, "FORBIDDEN");
+  }
+
+  const payload = dealerOwnerWritableSchema.parse(request.body);
+  const existingDealer = await prisma.dealer.findFirst({
+    select: {
+      id: true
+    },
+    where: {
+      ownerUserId: auth.userId
     }
+  });
+
+  if (existingDealer) {
+    throw new ApiError(409, "Dealer profile already exists", undefined, "DEALER_ALREADY_EXISTS");
   }
 
   const dealer = await prisma.dealer.create({
     data: {
-      ...payload,
-      ownerUserId: isAdminRole(auth.role) ? undefined : auth.userId,
-      tenantId: isAdminRole(auth.role) ? payload.tenantId : auth.tenantId
+      city: payload.city,
+      email: payload.email,
+      isVerified: false,
+      name: payload.name,
+      ownerUserId: auth.userId,
+      phone: payload.phone,
+      tenantId: auth.tenantId
     },
     include: dealerInclude
   });
@@ -134,7 +158,6 @@ export async function getDealerById(request: Request, response: Response) {
 
 export async function updateDealer(request: Request, response: Response) {
   const id = String(request.params.id);
-  const payload = updateDealerSchema.parse(request.body);
   const auth = request.auth;
 
   if (!auth) {
@@ -143,14 +166,13 @@ export async function updateDealer(request: Request, response: Response) {
 
   await assertCanManageDealer(auth, id);
 
+  // Owner payloads cannot carry isVerified/tenantId/ownerUserId; ownership is already asserted above.
+  const data = isAdminRole(auth.role)
+    ? adminDealerWritableSchema.partial().parse(request.body)
+    : dealerOwnerWritableSchema.partial().parse(request.body);
+
   const dealer = await prisma.dealer.update({
-    data: isAdminRole(auth.role)
-      ? payload
-      : {
-          ...payload,
-          ownerUserId: auth.userId,
-          tenantId: auth.tenantId
-        },
+    data,
     include: dealerInclude,
     where: {
       id

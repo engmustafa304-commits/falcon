@@ -1,10 +1,15 @@
-# Falcon Database Guide
+# Database
 
-Falcon uses SQLite for local development today and is designed to move to PostgreSQL before production.
+Falcon uses Prisma. The repository currently keeps two Prisma schemas:
 
-## Current Local Setup
+- `apps/backend/prisma/schema.prisma` for local SQLite development.
+- `apps/backend/prisma/schema.postgresql.prisma` for staging/production PostgreSQL preparation.
 
-The backend Prisma datasource currently remains:
+The schemas currently mirror the same models, relations, enums, indexes, and table mappings.
+
+## Local SQLite
+
+Local datasource:
 
 ```prisma
 datasource db {
@@ -13,93 +18,232 @@ datasource db {
 }
 ```
 
-Local backend environment:
+Local env example uses:
 
 ```env
 DATABASE_URL="file:./dev.db"
 ```
 
-Use SQLite only for local development, prototypes, and isolated testing. It is not suitable for Falcon production scale, multi-tenant concurrency, backups, operational analytics, or managed high availability.
-
-## Production Target
-
-Staging and production should use managed PostgreSQL. Staging uses the dedicated PostgreSQL Prisma schema:
-
-```text
-apps/backend/prisma/schema.postgresql.prisma
-```
-
-The staging connection string is:
-
-```env
-DATABASE_URL_STAGING="postgresql://USER:PASSWORD@HOST:5432/falcon_staging?sslmode=require"
-```
-
-The future production backend environment should use a PostgreSQL connection string:
-
-```env
-DATABASE_URL="postgresql://falcon_user:replace-password@postgres.example.com:5432/falcon?schema=public"
-```
-
-Recommended production database requirements:
-
-- Managed PostgreSQL with automated backups.
-- Point-in-time recovery.
-- Connection pooling.
-- Private networking where supported.
-- Separate production, staging, and development databases.
-- Monitored CPU, memory, storage, locks, and slow queries.
-
-## Prisma Commands
-
-Local development:
+Common local commands:
 
 ```bash
 corepack pnpm --filter @falcon/backend prisma:generate
 corepack pnpm --filter @falcon/backend prisma:push
 ```
 
-Production deployment:
+Local SQLite `.db` files are ignored by Git.
+
+## PostgreSQL Schema
+
+PostgreSQL datasource:
+
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+PostgreSQL commands:
 
 ```bash
 corepack pnpm --filter @falcon/backend prisma:generate:pg
+corepack pnpm --filter @falcon/backend prisma:migrate:dev:pg
 corepack pnpm --filter @falcon/backend prisma:migrate:deploy:pg
+corepack pnpm --filter @falcon/backend prisma:status:pg
 ```
 
-Use `prisma db push` only for local development. Production must use reviewed Prisma migrations.
+Railway runtime uses `DATABASE_URL` with the PostgreSQL schema and runs `prisma migrate deploy`.
 
-## Migration Checklist
+## Models
 
-Before switching production to PostgreSQL:
+### User
 
-1. Keep `apps/backend/prisma/schema.prisma` on SQLite for local development.
-2. Use `apps/backend/prisma/schema.postgresql.prisma` for PostgreSQL staging.
-3. Set `DATABASE_URL_STAGING` from `apps/backend/.env.staging.example`; staging startup maps it into the runtime `DATABASE_URL` before Prisma initializes.
-4. Generate an initial Prisma migration against PostgreSQL with `prisma:migrate:dev:pg`.
-5. Review generated SQL before applying it to staging or production.
-6. Run migrations in staging with `corepack pnpm --filter @falcon/backend prisma:migrate:deploy:pg`.
-7. Run backend typecheck/build.
-8. Smoke test auth, dealer ownership, car writes, image gallery, leads, finance requests, favorites, compare, analytics, and notifications.
-9. Regenerate the local SQLite client with `corepack pnpm --filter @falcon/backend prisma:generate` after PostgreSQL-specific work.
-10. Apply the same migration flow to production during a controlled release window.
-11. Verify backups and restore procedures before accepting production traffic.
+Represents platform users.
 
-## Compatibility Review
+Fields include:
 
-The current Prisma schema avoids provider-specific native types. This is good preparation for PostgreSQL:
+- `id`
+- `tenantId`
+- `name`
+- `email`
+- `phone`
+- `passwordHash`
+- `role`
+- `isActive`
+- relations to dealers, favorites, compare items, notifications, leads, and finance requests
 
-- IDs use `String @id @default(cuid())`, which is portable.
-- Money-like values use integer SAR fields such as `price`, `downPayment`, and `monthlyIncome`.
-- Dates use Prisma `DateTime`.
-- Enums are Prisma enums and become PostgreSQL enum types in `schema.postgresql.prisma` migrations.
-- Relations use standard `Cascade` and `SetNull` referential actions.
-- The schema does not use `@db.*` native types.
+Roles:
 
-## Schema Risks To Review Before Launch
+- `SUPER_ADMIN`
+- `ADMIN`
+- `DEALER_OWNER`
+- `DEALER_MANAGER`
+- `CUSTOMER`
 
-- `User.email` is globally unique. Confirm this is the desired policy for multi-tenant operation.
-- PostgreSQL enum changes require careful migrations. Renaming enum values is more sensitive than in SQLite.
-- Text fields currently have no database length limits. Add application validation and consider PostgreSQL-specific `@db.VarChar` only after choosing final limits.
-- High-volume marketplace queries will need production indexes beyond the current local foundation, especially composite tenant/status/city/brand/price indexes.
-- Integer SAR pricing is correct for whole-riyal prices. If halalas or multi-currency precision become required, introduce a minor-unit strategy or decimal strategy deliberately.
-- `CarImage.isMain` is not uniquely constrained per car. Application logic currently manages this, but PostgreSQL can later enforce it with a partial unique index if needed.
+### Dealer
+
+Represents a dealership profile.
+
+Fields include:
+
+- `id`
+- `name`
+- `city`
+- `email`
+- `phone`
+- `isVerified`
+- `tenantId`
+- `ownerUserId`
+- relations to cars, leads, and finance requests
+
+Dealer owners are linked through `ownerUserId`.
+
+### Car
+
+Represents a vehicle listing.
+
+Fields include:
+
+- `id`
+- `dealerId`
+- `name`
+- `brand`
+- `model`
+- `year`
+- `price`
+- `city`
+- `mileage`
+- `imageUrl`
+- `transmission`
+- `fuel`
+- `status`
+- `tenantId`
+- relations to leads, finance requests, favorites, compare items, and images
+
+Statuses:
+
+- `DRAFT`
+- `ACTIVE`
+- `SUSPENDED`
+- `SOLD`
+
+### CarImage
+
+Represents gallery image metadata for a car.
+
+Fields include:
+
+- `id`
+- `carId`
+- `url`
+- `storagePublicId`
+- `alt`
+- `sortOrder`
+- `isMain`
+- `createdAt`
+
+`storagePublicId` supports Cloudinary deletion when present.
+
+### Lead
+
+Represents contact interest.
+
+Fields include:
+
+- `tenantId`
+- optional `userId`
+- optional `carId`
+- optional `dealerId`
+- `name`
+- `phone`
+- optional `email`
+- optional `message`
+- `source`
+- `status`
+
+Sources:
+
+- `CAR_DETAIL`
+- `DEALER_PAGE`
+- `FINANCE_REQUEST`
+- `WHATSAPP_CLICK`
+
+Statuses:
+
+- `NEW`
+- `CONTACTED`
+- `WON`
+- `LOST`
+
+### FinanceRequest
+
+Represents a finance inquiry.
+
+Fields include:
+
+- `tenantId`
+- optional `userId`
+- optional `carId`
+- optional `dealerId`
+- `customerName`
+- `phone`
+- optional `email`
+- optional `monthlyIncome`
+- optional `downPayment`
+- optional `financingPeriod`
+- optional `employmentType`
+- `status`
+
+Statuses:
+
+- `NEW`
+- `REVIEWING`
+- `APPROVED`
+- `REJECTED`
+
+### Favorite
+
+Links a user to a saved car. The schema enforces unique `userId + carId`.
+
+### CompareItem
+
+Links a user to a compared car. The schema enforces unique `userId + carId`.
+
+### Notification
+
+Stores in-app notifications for a user.
+
+Types:
+
+- `INFO`
+- `SUCCESS`
+- `WARNING`
+- `ERROR`
+- `LEAD`
+- `FINANCE`
+- `CAR`
+- `DEALER`
+
+## Indexes And Relations
+
+The schemas include indexes for common access paths:
+
+- `tenantId`
+- dealer owner
+- dealer city
+- car dealer
+- car brand/model
+- car city
+- car image main/public ID
+- lead/finance status and foreign keys
+- notification read state and created date
+
+Cascade behavior is used where child rows should be removed with parent records, such as cars under dealers and car images under cars. Optional relations such as lead car/dealer/user references use `SetNull`.
+
+## Current Migration Notes
+
+The repository includes schema files and scripts. It does not include committed Prisma migration folders. `apps/backend/prisma/migrations` is ignored by `.gitignore`.
+
+Use `prisma db push` only for local development. Use reviewed PostgreSQL migrations and `prisma migrate deploy` for managed environments.
+

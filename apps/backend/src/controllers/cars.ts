@@ -5,7 +5,9 @@ import { prisma } from "../database/prismaClient.js";
 import { ApiError } from "../errors/ApiError.js";
 import { storageProvider } from "../services/storage/index.js";
 
-const createCarSchema = z.object({
+// Unknown fields are stripped by Zod and ignored. For dealer users, tenantId is server-owned (always
+// derived from their dealer) and dealerId is only accepted when it matches their own dealer (403 otherwise).
+const dealerCarWritableSchema = z.object({
   brand: z.string().min(1),
   city: z.string().min(1),
   dealerId: z.string().min(1).optional(),
@@ -16,12 +18,13 @@ const createCarSchema = z.object({
   name: z.string().min(1),
   price: z.coerce.number().int().positive(),
   status: z.enum(["DRAFT", "ACTIVE", "SUSPENDED", "SOLD"]).optional(),
-  tenantId: z.string().min(1).optional(),
   transmission: z.string().min(1),
   year: z.coerce.number().int().min(1900).max(2100)
 });
 
-const updateCarSchema = createCarSchema.partial();
+const adminCarWritableSchema = dealerCarWritableSchema.extend({
+  tenantId: z.string().min(1).optional()
+});
 
 const listCarsQuerySchema = z.object({
   brand: z.string().optional(),
@@ -146,20 +149,22 @@ export async function listDealerCars(request: Request, response: Response) {
 }
 
 export async function createCar(request: Request, response: Response) {
-  const payload = createCarSchema.parse(request.body);
   const auth = request.auth;
 
   if (!auth) {
     throw new ApiError(401, "Authentication is required", undefined, "UNAUTHORIZED");
   }
 
-  const dealer = await resolveDealerForCarWrite(auth, payload.dealerId);
+  const { dealerId, tenantId, ...carFields } = isAdminRole(auth.role)
+    ? adminCarWritableSchema.parse(request.body)
+    : { ...dealerCarWritableSchema.parse(request.body), tenantId: undefined };
+  const dealer = await resolveDealerForCarWrite(auth, dealerId);
 
   const car = await prisma.car.create({
     data: {
-      ...payload,
+      ...carFields,
       dealerId: dealer.id,
-      tenantId: isAdminRole(auth.role) ? payload.tenantId ?? dealer.tenantId : auth.tenantId
+      tenantId: tenantId ?? dealer.tenantId
     },
     include: carInclude
   });
@@ -185,7 +190,6 @@ export async function getCarById(request: Request, response: Response) {
 
 export async function updateCar(request: Request, response: Response) {
   const id = String(request.params.id);
-  const payload = updateCarSchema.parse(request.body);
   const auth = request.auth;
 
   if (!auth) {
@@ -211,23 +215,27 @@ export async function updateCar(request: Request, response: Response) {
     throw new ApiError(404, "Car not found", undefined, "CAR_NOT_FOUND");
   }
 
+  const { dealerId, tenantId, ...carFields } = isAdminRole(auth.role)
+    ? adminCarWritableSchema.partial().parse(request.body)
+    : { ...dealerCarWritableSchema.partial().parse(request.body), tenantId: undefined };
+
   if (!isAdminRole(auth.role)) {
     if (existingCar.dealer.ownerUserId !== auth.userId || existingCar.dealer.tenantId !== auth.tenantId) {
       throw new ApiError(403, "Cannot manage another dealer's cars", undefined, "FORBIDDEN");
     }
 
-    if (payload.dealerId && payload.dealerId !== existingCar.dealerId) {
+    if (dealerId && dealerId !== existingCar.dealerId) {
       throw new ApiError(403, "Cannot move car to another dealer", undefined, "FORBIDDEN");
     }
-  } else if (payload.dealerId) {
-    await resolveDealerForCarWrite(auth, payload.dealerId);
+  } else if (dealerId) {
+    await resolveDealerForCarWrite(auth, dealerId);
   }
 
   const car = await prisma.car.update({
     data: {
-      ...payload,
-      dealerId: isAdminRole(auth.role) ? payload.dealerId : existingCar.dealerId,
-      tenantId: isAdminRole(auth.role) ? payload.tenantId : existingCar.tenantId
+      ...carFields,
+      dealerId: isAdminRole(auth.role) ? dealerId : existingCar.dealerId,
+      tenantId: isAdminRole(auth.role) ? tenantId : existingCar.tenantId
     },
     include: carInclude,
     where: {

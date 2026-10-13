@@ -27,7 +27,6 @@ export type RegisterInput = LoginInput & {
   name: string;
   phone?: string;
   role?: AuthRole;
-  tenantId?: string;
 };
 
 const AUTH_USER_STORAGE_KEY = "falcon.auth.user";

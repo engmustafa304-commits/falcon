@@ -92,12 +92,34 @@ model User {
   notifications Notification[]
   leads        Lead[]
   financeRequests FinanceRequest[]
+  refreshTokens RefreshToken[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([tenantId])
   @@index([role])
   @@map("users")
+}
+
+model RefreshToken {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique
+  familyId     String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  userAgent    String?
+  ip           String?
+  deviceName   String?
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 model Notification {

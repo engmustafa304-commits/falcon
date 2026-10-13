@@ -1,10 +1,19 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { prisma } from "../database/prismaClient.js";
 import { ApiError } from "../errors/ApiError.js";
+import {
+  issueTokenPair,
+  listActiveSessions,
+  revokeAllForUser,
+  revokeRefreshToken,
+  revokeSession,
+  rotateRefreshToken,
+  toPublicTokenPair,
+  type RefreshTokenContext
+} from "../services/authTokens.js";
 
 const publicUserSelect = {
   createdAt: true,
@@ -18,18 +27,31 @@ const publicUserSelect = {
   updatedAt: true
 } as const;
 
+// Unknown or server-owned fields (tenantId, isActive, ...) are stripped by Zod and ignored.
+const deviceNameSchema = z.string().trim().min(1).max(100).optional();
+
 const registerSchema = z.object({
+  deviceName: deviceNameSchema,
   email: z.string().email().transform((value) => value.toLowerCase().trim()),
   name: z.string().min(2),
   password: z.string().min(8),
   phone: z.string().min(5).optional(),
-  role: z.enum(["DEALER_OWNER", "CUSTOMER"]).optional(),
-  tenantId: z.string().min(1).default("platform")
+  role: z.enum(["DEALER_OWNER", "CUSTOMER"]).optional()
 });
 
 const loginSchema = z.object({
+  deviceName: deviceNameSchema,
   email: z.string().email().transform((value) => value.toLowerCase().trim()),
   password: z.string().min(1)
+});
+
+const refreshSchema = z.object({
+  deviceName: deviceNameSchema,
+  refreshToken: z.string().min(1)
+});
+
+const logoutSchema = z.object({
+  refreshToken: z.string().min(1)
 });
 
 export async function register(request: Request, response: Response) {
@@ -57,7 +79,7 @@ export async function register(request: Request, response: Response) {
         passwordHash,
         phone: payload.phone,
         role,
-        tenantId: payload.tenantId
+        tenantId: env.DEFAULT_TENANT_ID
       },
       select: publicUserSelect
     });
@@ -79,12 +101,9 @@ export async function register(request: Request, response: Response) {
     return createdUser;
   });
 
-  response.status(201).json({
-    data: {
-      token: signAccessToken(user),
-      user
-    }
-  });
+  const tokens = await issueTokenPair(user, getRefreshTokenContext(request, payload.deviceName));
+
+  response.status(201).json({ data: buildAuthPayload(toPublicTokenPair(tokens), user) });
 }
 
 export async function login(request: Request, response: Response) {
@@ -121,12 +140,50 @@ export async function login(request: Request, response: Response) {
     updatedAt: user.updatedAt
   };
 
-  response.status(200).json({
-    data: {
-      token: signAccessToken(publicUser),
-      user: publicUser
+  const tokens = await issueTokenPair(publicUser, getRefreshTokenContext(request, payload.deviceName));
+
+  response.status(200).json({ data: buildAuthPayload(toPublicTokenPair(tokens), publicUser) });
+}
+
+export async function refresh(request: Request, response: Response) {
+  const payload = refreshSchema.parse(request.body);
+  const { tokens, userId } = await rotateRefreshToken(payload.refreshToken, getRefreshTokenContext(request, payload.deviceName));
+  const user = await prisma.user.findUniqueOrThrow({
+    select: publicUserSelect,
+    where: {
+      id: userId
     }
   });
+
+  response.status(200).json({ data: buildAuthPayload(tokens, user) });
+}
+
+export async function logout(request: Request, response: Response) {
+  const payload = logoutSchema.parse(request.body);
+  await revokeRefreshToken(payload.refreshToken);
+
+  response.status(204).send();
+}
+
+export async function logoutAll(request: Request, response: Response) {
+  const auth = requireRequestAuth(request);
+  await revokeAllForUser(auth.userId);
+
+  response.status(204).send();
+}
+
+export async function listSessions(request: Request, response: Response) {
+  const auth = requireRequestAuth(request);
+  const sessions = await listActiveSessions(auth.userId);
+
+  response.status(200).json({ data: sessions });
+}
+
+export async function deleteSession(request: Request, response: Response) {
+  const auth = requireRequestAuth(request);
+  await revokeSession(auth.userId, String(request.params.id));
+
+  response.status(204).send();
 }
 
 export async function getCurrentUser(request: Request, response: Response) {
@@ -152,16 +209,27 @@ export async function getCurrentUser(request: Request, response: Response) {
   response.status(200).json({ data: user });
 }
 
-function signAccessToken(user: { id: string; role: string; tenantId: string }) {
-  return jwt.sign(
-    {
-      role: user.role,
-      tenantId: user.tenantId
-    },
-    env.JWT_ACCESS_SECRET,
-    {
-      expiresIn: "7d",
-      subject: user.id
-    }
-  );
+function requireRequestAuth(request: Request) {
+  if (!request.auth) {
+    throw new ApiError(401, "Authentication is required", undefined, "UNAUTHORIZED");
+  }
+
+  return request.auth;
+}
+
+function getRefreshTokenContext(request: Request, deviceName?: string): RefreshTokenContext {
+  return {
+    deviceName,
+    ip: request.ip,
+    userAgent: request.header("user-agent")?.slice(0, 500)
+  };
+}
+
+function buildAuthPayload<TUser>(tokens: ReturnType<typeof toPublicTokenPair>, user: TUser) {
+  return {
+    ...tokens,
+    /** @deprecated Use `accessToken`. Kept for clients built before refresh tokens existed. */
+    token: tokens.accessToken,
+    user
+  };
 }
